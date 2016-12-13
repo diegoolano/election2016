@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<link rel="stylesheet" href="change.css" type="text/css">
+<svg width="960" height="600"></svg>
+<script src="https://d3js.org/d3.v4.min.js"></script>
+<script src="https://d3js.org/d3-scale-chromatic.v1.min.js"></script>
+<script src="https://d3js.org/topojson.v2.min.js"></script>
+<script>
+
+var svg = d3.select("svg"), width = +svg.attr("width"), height = +svg.attr("height");
+var unemployment = d3.map();
+var path = d3.geoPath();
+var x = d3.scaleLinear() .domain([1,10]) .rangeRound([600, 860]);
+var color = d3.scaleThreshold() .domain(d3.range(2,10)) .range(d3.schemeReds[9]);
+var g = svg.append("g") .attr("class", "key") .attr("transform", "translate(0,40)");
+var dd = d3.scaleLinear().domain([-360025,-991,-31,82,240,448,689,992,1518,2547,46272 ]).range([1,2,3,4,5,6,7,8,9,10])
+
+var tooltip = d3.select("body")
+    .append("div")
+    .attr("class","tt")
+    .style("padding","10px")
+    .style("margin","10px")
+    .style("position", "absolute")
+    .style("z-index", "10")
+    .style("background","white")
+    .style("border","2px dashed red")
+    .style("visibility", "hidden");
+
+var info = d3.select("body")
+    .append("div")
+    .attr("class","info")
+    .style("padding","10px")
+    .style("margin","10px")
+    .style("position", "absolute")
+    .style("right","10%")
+    .style("top","0%")
+    .style("z-index", "-10")
+    .html("Raw Change of Voter<br>for Republicans in <br>2016 Presidential Election<br><div id='resultlist'></div>");
+
+var info = d3.select("body")
+    .append("div")
+    .attr("class","links")
+    .html("<a href='./republican-votes.html'>Republicans Raw Counts</a><br><a href='./republican-per.html'>Republican % Change</a><br><a href='democrat-votes.html'>Democrat Raw Count</a><br><a href='democrat-per.html'>Democrat % Change</a><br><a href='../2016/'>2016 Blue Islands</a>");
+
+g.selectAll("rect")
+  .data(color.range().map(function(d) {
+      d = color.invertExtent(d);
+      if (d[0] == null) d[0] = x.domain()[0];
+      if (d[1] == null) d[1] = x.domain()[1];
+      return d;
+    }))
+  .enter().append("rect") .attr("height", 8) .attr("x", function(d) { return x(d[0]); }) .attr("width", function(d) { return x(d[1]) - x(d[0]); }) .attr("fill", function(d) { return color(d[0]); });
+
+g.append("text") .attr("class", "caption") .attr("x", x.range()[0]) .attr("y", -6) .attr("fill", "#000") .attr("text-anchor", "start") .attr("font-weight", "bold") .text("INTENSITY OF CHANGE");
+
+g.call(d3.axisBottom(x)
+    .tickSize(13)
+    .tickFormat(function(x, i) { /*return i ? x : x + "%";*/ })
+    .tickValues(color.domain()))
+  .select(".domain")
+    .remove();
+
+//.defer(d3.tsv, "unemployment.tsv", function(d) { unemployment.set(d.id, +d.rate); })
+changejson = {};
+
+d3.queue()
+    .defer(d3.json, "https://d3js.org/us-10m.v1.json")
+    .defer(d3.csv, "change.csv", function(d) { 
+		d.id = d.fips;
+		if((d.id + "").length < 5){ d.id = "0"+d.id}
+		unemployment.set(d.id, d.rdiff16_raw); 
+		changejson[d.id] = d; 
+		
+    })
+    .await(ready);
+
+function populate_resultlist(){
+  //document.getElementById("resultlist").innerHTML = out +"</ul>"; 	
+   ordered_municips = {};
+   Object.keys(changejson).forEach(function(ent){
+        ordered_municips[ent] = Math.round(parseFloat(changejson[ent].rdiff16_raw));
+   });
+
+   //console.log(ordered_municips);
+
+   var tuples = [];
+   for (var key in ordered_municips) tuples.push([key, ordered_municips[key]]);
+
+   tuples.sort(function(a, b) {
+        a = a[1];
+        b = b[1];
+        return a < b ? 1 : (a > b ? -1 : 0);
+   });
+
+   out ="<ul>";
+   for (var i = 0; i < 200; i++) {
+        key = tuples[i][0];
+        val = tuples[i][1];
+        county = changejson[key].County;
+        out += "<li class='fips"+key+"'>"+county+" : "+val+"</li>";
+   }
+
+   document.getElementById("resultlist").innerHTML = out +"</ul>";   
+   d3.selectAll("#resultlist li").on("mouseover", function(d){ 
+	i = "path."+ this.attributes.class.value;
+	d3.select(i).classed("selected",true);	
+   }).on("mouseout", function(d){
+	i = "path."+ this.attributes.class.value;
+	d3.select(i).classed("selected",false);	
+   });
+
+}
+
+function ready(error, us) {
+  if (error) throw error;
+  
+  //Populate result list
+  populate_resultlist();
+
+  svg.append("g")
+      .attr("class", "counties")
+    .selectAll("path")
+    .data(topojson.feature(us, us.objects.counties).features)
+    .enter().append("path")
+      .attr("class",function(d){ return "fips" + d.id; })
+      .attr("fill", function(d) { 
+		findbin = unemployment.get(d.id) 
+		v = dd(findbin);
+		thisc = color(v);
+		return thisc; 
+	})
+      .attr("d", path)
+      .on("mouseover", function(d){ 
+		      i = "path.fips"+d.id;
+				d3.select(i).classed("selected",true); 
+				if( Object.keys(changejson).indexOf(d.id) > -1 ){
+				  cur = changejson[d.id];
+				  t = "County: "+cur.County+",<br>Change in Republican votes from 2012 to 2016: " + Math.round(cur.rdiff16_raw);
+				}
+				else{ t = "none found"; }
+         tooltip.html(t);
+         return tooltip.style("visibility", "visible");     
+      })
+      .on("mousemove", function(){return tooltip.style("top", (d3.event.pageY-10)+"px").style("left",(d3.event.pageX+10)+"px");})
+      .on("mouseout", function(){
+		  d3.select(this).classed("selected",false); 
+		  return tooltip.style("visibility", "hidden");
+      });
+
+  svg.append("path")
+      .datum(topojson.mesh(us, us.objects.states, function(a, b) { return a !== b; }))
+      .attr("class", "states")
+      .attr("d", path);
+}
+
+</script>
+
+
+<script> 
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){ 
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o), 
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m) 
+  })(window,document,'script','https://www.google-analytics.com/analytics.js','ga'); 
+ 
+  ga('create', 'UA-85920004-1', 'auto'); 
+  ga('send', 'pageview'); 
+ 
+</script> 

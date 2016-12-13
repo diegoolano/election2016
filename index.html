@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<link rel="stylesheet" href="change.css" type="text/css">
+<style> .links a { font-size:18px!important; }</style>
+<svg width="960" height="600"></svg>
+<script src="https://d3js.org/d3.v4.min.js"></script>
+<script src="https://d3js.org/d3-scale-chromatic.v1.min.js"></script>
+<script>
+var info = d3.select("body")
+    .append("div")
+    .attr("class","links")
+    .html("<a href='./republican-votes.html'>Republicans Raw Counts</a><br><a href='./republican-per.html'>Republican % Change</a><br><a href='democrat-votes.html'>Democrat Raw Count</a><br><a href='democrat-per.html'>Democrat % Change</a>");
+</script>
+<body><p style='color:white; font-size:48px'>The following 4 maps,<br>linked below at the bottom left,<br>show the change in US Presidential voter turnout,<br>both in terms of raw vote counts and as percentages,<br>from 2012 to 2016<br>for both Republicans and Democrats</p>
+</body>
+<script> 
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){ 
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o), 
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m) 
+  })(window,document,'script','https://www.google-analytics.com/analytics.js','ga'); 
+ 
+  ga('create', 'UA-85920004-1', 'auto'); 
+  ga('send', 'pageview'); 
+ 
+</script> 
